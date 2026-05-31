@@ -1,27 +1,42 @@
 import streamlit as st
-
 import os
 import sys
 
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# =========================
+# PATH CONFIGURATION
+# =========================
+project_root = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
+)
+
 sys.path.append(project_root)
 
+# =========================
+# IMPORTS
+# =========================
 from Ingestion.data_loader import DataLoader
 from analysis.dataset_analyzer import DatasetAnalyzer
+from preprocessing.preprocessor import Preprocessor
 
-
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(
-    page_title="AutoML Pipeline",
+    page_title="ModelForge",
     page_icon="🤖",
     layout="wide"
 )
 
-st.title("🤖 AutoML Pipeline")
+st.title("🤖 ModelForge")
+st.caption("Build Machine Learning Pipelines Faster")
 
-st.write("Upload a CSV file to analyze the dataset.")
-
+# =========================
+# FILE UPLOAD
+# =========================
 uploaded_file = st.file_uploader(
-    "Choose a CSV file",
+    "Upload CSV Dataset",
     type=["csv"]
 )
 
@@ -29,6 +44,9 @@ if uploaded_file is not None:
 
     try:
 
+        # =========================
+        # LOAD DATA
+        # =========================
         loader = DataLoader()
 
         df = loader.load_data(uploaded_file)
@@ -39,38 +57,166 @@ if uploaded_file is not None:
 
         st.success("Dataset Loaded Successfully!")
 
-        st.subheader("Dataset Preview")
-        st.dataframe(loader.preview_data(df))
+        # =========================
+        # TABS
+        # =========================
+        tab1, tab2 = st.tabs([
+            "📊 Dataset Analysis",
+            "🛠️ Preprocessing"
+        ])
 
-        st.subheader("Dataset Shape")
+        # ==================================================
+        # TAB 1 : DATASET ANALYSIS
+        # ==================================================
+        with tab1:
 
-        rows, cols = report["Shape"]
+            st.subheader("Dataset Preview")
 
-        col1, col2 = st.columns(2)
+            st.dataframe(
+                loader.preview_data(df),
+                use_container_width=True
+            )
 
-        with col1:
-            st.metric("Rows", rows)
+            rows, cols = report["Shape"]
 
-        with col2:
-            st.metric("Columns", cols)
+            c1, c2, c3 = st.columns(3)
 
-        st.subheader("Column Names")
-        st.write(report["Columns_name"])
+            with c1:
+                st.metric("Rows", rows)
 
-        st.subheader("Column Types")
-        st.write(report["Columns_type"])
+            with c2:
+                st.metric("Columns", cols)
 
-        st.subheader("Missing Values")
-        st.dataframe(report["Missing_values"])
+            with c3:
+                st.metric(
+                    "Duplicates",
+                    report["Duplicate_count"]
+                )
 
-        st.subheader("Duplicate Count")
-        st.write(report["Duplicate_count"])
+            st.divider()
 
-        st.subheader("Numerical Columns")
-        st.write(report["Numerical_columns"])
+            col1, col2 = st.columns(2)
 
-        st.subheader("Categorical Columns")
-        st.write(report["Categorical_columns"])
+            with col1:
+
+                st.subheader("Column Names")
+                st.write(report["Columns_name"])
+
+                st.subheader("Numerical Columns")
+                st.write(report["Numerical_columns"])
+
+            with col2:
+
+                st.subheader("Column Types")
+                st.write(report["Columns_type"])
+
+                st.subheader("Categorical Columns")
+                st.write(report["Categorical_columns"])
+
+            st.subheader("Missing Values")
+
+            st.dataframe(
+                report["Missing_values"],
+                use_container_width=True
+            )
+
+        # ==================================================
+        # TAB 2 : PREPROCESSING
+        # ==================================================
+        with tab2:
+
+            st.subheader("Preprocessing Configuration")
+
+            numeric_strategy = st.selectbox(
+                "Numerical Missing Value Strategy",
+                ["mean", "median"]
+            )
+
+            duplicate_strategy = st.radio(
+                "Duplicate Handling",
+                ["keep", "remove"]
+            )
+
+            st.info(
+                "Categorical missing values will be "
+                "filled using Mode."
+            )
+
+            if st.button(
+                "🚀 Apply Preprocessing",
+                use_container_width=True
+            ):
+
+                preprocessor = Preprocessor(
+                    df=df,
+                    numeric_strategy=numeric_strategy,
+                    cat_strategy="mode",
+                    duplicate_strategy=duplicate_strategy
+                )
+
+                # =========================
+                # MISSING VALUES
+                # =========================
+                clean_df, high_missing_columns = (
+                    preprocessor.handle_missing_values()
+                )
+
+                # =========================
+                # DUPLICATES
+                # =========================
+                preprocessor.df = clean_df
+
+                clean_df = (
+                    preprocessor.handle_duplicate()
+                )
+
+                st.success(
+                    "Preprocessing Completed Successfully!"
+                )
+
+                st.subheader(
+                    "Processed Dataset Preview"
+                )
+
+                st.dataframe(
+                    clean_df.head(),
+                    use_container_width=True
+                )
+
+                st.subheader(
+                    "Processed Dataset Shape"
+                )
+
+                r, c = clean_df.shape
+
+                cc1, cc2 = st.columns(2)
+
+                with cc1:
+                    st.metric(
+                        "Rows After Processing",
+                        r
+                    )
+
+                with cc2:
+                    st.metric(
+                        "Columns After Processing",
+                        c
+                    )
+
+                if high_missing_columns:
+
+                    st.warning(
+                        f"High Missing Columns Found: "
+                        f"{high_missing_columns}"
+                    )
+
+                st.download_button(
+                    label="📥 Download Processed Dataset",
+                    data=clean_df.to_csv(index=False),
+                    file_name="processed_dataset.csv",
+                    mime="text/csv"
+                )
 
     except Exception as e:
+
         st.error(f"Error: {e}")
