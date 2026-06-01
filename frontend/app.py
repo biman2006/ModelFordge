@@ -2,9 +2,10 @@ import streamlit as st
 import os
 import sys
 
-# =========================
-# PATH CONFIGURATION
-# =========================
+# =====================================================
+# PATH SETUP
+# =====================================================
+
 project_root = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
@@ -13,16 +14,18 @@ project_root = os.path.dirname(
 
 sys.path.append(project_root)
 
-# =========================
+# =====================================================
 # IMPORTS
-# =========================
+# =====================================================
+
 from Ingestion.data_loader import DataLoader
 from analysis.dataset_analyzer import DatasetAnalyzer
 from preprocessing.preprocessor import Preprocessor
 
-# =========================
+# =====================================================
 # PAGE CONFIG
-# =========================
+# =====================================================
+
 st.set_page_config(
     page_title="ModelForge",
     page_icon="🤖",
@@ -32,21 +35,23 @@ st.set_page_config(
 st.title("🤖 ModelForge")
 st.caption("Build Machine Learning Pipelines Faster")
 
-# =========================
+# =====================================================
 # FILE UPLOAD
-# =========================
+# =====================================================
+
 uploaded_file = st.file_uploader(
     "Upload CSV Dataset",
     type=["csv"]
 )
 
+# =====================================================
+# MAIN APP
+# =====================================================
+
 if uploaded_file is not None:
 
     try:
 
-        # =========================
-        # LOAD DATA
-        # =========================
         loader = DataLoader()
 
         df = loader.load_data(uploaded_file)
@@ -57,17 +62,19 @@ if uploaded_file is not None:
 
         st.success("Dataset Loaded Successfully!")
 
-        # =========================
+        # =================================================
         # TABS
-        # =========================
+        # =================================================
+
         tab1, tab2 = st.tabs([
             "📊 Dataset Analysis",
             "🛠️ Preprocessing"
         ])
 
-        # ==================================================
-        # TAB 1 : DATASET ANALYSIS
-        # ==================================================
+        # =================================================
+        # DATASET ANALYSIS TAB
+        # =================================================
+
         with tab1:
 
             st.subheader("Dataset Preview")
@@ -120,27 +127,75 @@ if uploaded_file is not None:
                 use_container_width=True
             )
 
-        # ==================================================
-        # TAB 2 : PREPROCESSING
-        # ==================================================
+        # =================================================
+        # PREPROCESSING TAB
+        # =================================================
+
         with tab2:
 
             st.subheader("Preprocessing Configuration")
+
+            # -----------------------------
+            # Missing Value Strategy
+            # -----------------------------
 
             numeric_strategy = st.selectbox(
                 "Numerical Missing Value Strategy",
                 ["mean", "median"]
             )
 
+            # -----------------------------
+            # Duplicate Strategy
+            # -----------------------------
+
             duplicate_strategy = st.radio(
                 "Duplicate Handling",
                 ["keep", "remove"]
             )
 
+            # -----------------------------
+            # Encoding Section
+            # -----------------------------
+
+            st.subheader("Encoding Configuration")
+
+            cat_cols = analyzer.categorical_columns()
+
+            if len(cat_cols) > 0:
+
+                selected_column = st.selectbox(
+                    "Select Column For Encoding",
+                    cat_cols
+                )
+
+                encoding_strategy = st.selectbox(
+                    "Encoding Strategy",
+                    [
+                        "keep_Same",
+                        "OneHotEncoder",
+                        "LabelEncoder",
+                        "OrdinalEncoder"
+                    ]
+                )
+
+            else:
+
+                st.info(
+                    "No categorical columns found."
+                )
+
+                selected_column = None
+
+                encoding_strategy = "keep_Same"
+
             st.info(
-                "Categorical missing values will be "
+                "Categorical missing values are "
                 "filled using Mode."
             )
+
+            # -----------------------------
+            # APPLY BUTTON
+            # -----------------------------
 
             if st.button(
                 "🚀 Apply Preprocessing",
@@ -151,24 +206,46 @@ if uploaded_file is not None:
                     df=df,
                     numeric_strategy=numeric_strategy,
                     cat_strategy="mode",
-                    duplicate_strategy=duplicate_strategy
+                    duplicate_strategy=duplicate_strategy,
+                    encoding_strategy=encoding_strategy
                 )
 
-                # =========================
-                # MISSING VALUES
-                # =========================
+                # ==================================
+                # Missing Values
+                # ==================================
+
                 clean_df, high_missing_columns = (
                     preprocessor.handle_missing_values()
                 )
 
-                # =========================
-                # DUPLICATES
-                # =========================
+                # ==================================
+                # Duplicates
+                # ==================================
+
                 preprocessor.df = clean_df
 
                 clean_df = (
                     preprocessor.handle_duplicate()
                 )
+
+                # ==================================
+                # Encoding
+                # ==================================
+
+                preprocessor.df = clean_df
+
+                if selected_column:
+
+                    clean_df = (
+                        preprocessor
+                        .encode_categorical_column(
+                            selected_column
+                        )
+                    )
+
+                # ==================================
+                # OUTPUT
+                # ==================================
 
                 st.success(
                     "Preprocessing Completed Successfully!"

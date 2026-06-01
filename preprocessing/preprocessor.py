@@ -1,14 +1,18 @@
 from analysis.dataset_analyzer import DatasetAnalyzer
 import pandas as pd
 
+
 print("PREPROCESSOR FILE LOADED")
 class Preprocessor:
-    def __init__(self,df,numeric_strategy,cat_strategy,duplicate_strategy):
+    def __init__(self,df,numeric_strategy,cat_strategy,duplicate_strategy,encoding_strategy):
+        print("ENCODING STRATEGY RECEIVED")
+        
         print("PREPROCESSOR INIT CALLED")
         self.df=df 
         self.numeric_strategy=numeric_strategy
         self.cat_strategy=cat_strategy
         self.duplicate_strategy=duplicate_strategy
+        self.encoding_strategy=encoding_strategy
         self.analyzer=DatasetAnalyzer(self.df)
 
 
@@ -88,6 +92,76 @@ class Preprocessor:
                 df_copy=df_copy.drop_duplicates()
 
                 return df_copy
+            
+    def encode_categorical_column(self,column_name):
+
+        df_copy=self.df.copy()
+
+        
+        #cat_cols=self.analyzer.categorical_columns()
+
+        if not column_name:
+            return df_copy
+
+        if self.encoding_strategy=="keep_Same":
+            return df_copy 
+        
+        if self.encoding_strategy=="OneHotEncoder":
+          
+          from sklearn.preprocessing import OneHotEncoder
+
+          ohe=OneHotEncoder(sparse_output=False,handle_unknown='ignore')
+
+          encoded_data=ohe.fit_transform(df_copy[[column_name]])
+
+          encoded_df=pd.DataFrame(encoded_data,columns=ohe.get_feature_names_out([column_name]), index=df_copy.index)
+
+          df_copy=df_copy.drop(columns=column_name)
+
+          df_copy=pd.concat([df_copy,encoded_df],axis=1)
+        
+
+          return df_copy
+        
+
+        elif self.encoding_strategy=="LabelEncoder":
+            from sklearn.preprocessing import LabelEncoder
+
+            
+
+            Le=LabelEncoder()
+
+            df_copy[column_name]=Le.fit_transform(df_copy[column_name].astype(str))
+
+            return df_copy
+        
+
+        elif self.encoding_strategy=="OrdinalEncoder":
+          
+          from sklearn.preprocessing import OrdinalEncoder
+
+          ore=OrdinalEncoder()
+
+          encoded_data=ore.fit_transform(df_copy[[column_name]])
+
+          
+          df_copy[column_name]=encoded_data.flatten()
+
+          return df_copy
+        
+
+             
+
+            
+
+             
+        
+
+          
+        
+
+
+
             
 
 
