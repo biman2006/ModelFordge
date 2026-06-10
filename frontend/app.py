@@ -204,10 +204,7 @@ if uploaded_file is not None:
 
                 preprocessor = Preprocessor(
                     df=df,
-                    numeric_strategy=numeric_strategy,
-                    cat_strategy="mode",
-                    duplicate_strategy=duplicate_strategy,
-                    encoding_strategy=encoding_strategy
+                    
                 )
 
                 # ==================================
@@ -215,7 +212,7 @@ if uploaded_file is not None:
                 # ==================================
 
                 clean_df, high_missing_columns = (
-                    preprocessor.handle_missing_values()
+                    preprocessor.handle_missing_values(numeric_strategy)
                 )
 
                 # ==================================
@@ -225,7 +222,7 @@ if uploaded_file is not None:
                 preprocessor.df = clean_df
 
                 clean_df = (
-                    preprocessor.handle_duplicate()
+                    preprocessor.handle_duplicate(duplicate_strategy)
                 )
 
                 # ==================================
@@ -239,7 +236,7 @@ if uploaded_file is not None:
                     clean_df = (
                         preprocessor
                         .encode_categorical_column(
-                            selected_column
+                            selected_column, encoding_strategy
                         )
                     )
 

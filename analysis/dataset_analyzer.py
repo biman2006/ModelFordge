@@ -23,10 +23,19 @@ class DatasetAnalyzer:
         return self.df.duplicated().sum()
     
     def numerical_columns(self):
-        return self.df.select_dtypes(include=["int64","float64"]).columns.tolist()
+
+        raw_numeric=self.df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+        actual_numeric=[col for col in raw_numeric if self.df[col].nunique() >= 4]
+        return actual_numeric
+        
     
     def categorical_columns(self):
-        return self.df.select_dtypes(include=["object","category"]).columns.tolist()
+        standard_cat = self.df.select_dtypes(include=["object", "category"]).columns.tolist()
+        raw_numeric = self.df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+
+        low_cardinality_numeric = [col for col in raw_numeric if self.df[col].nunique() <= 4]
+
+        return list(set(standard_cat + low_cardinality_numeric))
     
     def generate_report(self):
         report={

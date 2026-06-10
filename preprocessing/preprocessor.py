@@ -4,15 +4,13 @@ import pandas as pd
 
 print("PREPROCESSOR FILE LOADED")
 class Preprocessor:
-    def __init__(self,df,numeric_strategy,cat_strategy,duplicate_strategy,encoding_strategy):
+    def __init__(self,df):
         print("ENCODING STRATEGY RECEIVED")
         
         print("PREPROCESSOR INIT CALLED")
-        self.df=df 
-        self.numeric_strategy=numeric_strategy
-        self.cat_strategy=cat_strategy
-        self.duplicate_strategy=duplicate_strategy
-        self.encoding_strategy=encoding_strategy
+        self.df=df
+        
+    
         self.analyzer=DatasetAnalyzer(self.df)
 
 
@@ -31,7 +29,10 @@ class Preprocessor:
 
         return result
     
-    def handle_missing_values(self):
+
+
+    
+    def handle_missing_values(self,numeric_strategy):
 
         df_copy=self.df.copy()
 
@@ -52,10 +53,10 @@ class Preprocessor:
 
             elif missing_percentage<=5:
                 if column in numeric_columns:
-                    if self.numeric_strategy=="mean":
+                    if numeric_strategy=="mean":
                         fill_value=df_copy[column].mean()
 
-                    elif self.numeric_strategy=="median":
+                    elif numeric_strategy=="median":
                         fill_value=df_copy[column].median()
                     df_copy[column]=df_copy[column].fillna(fill_value)
 
@@ -80,33 +81,38 @@ class Preprocessor:
         return df_copy,high_missing_columns
     
 
-    def handle_duplicate(self):
+    
+
+    def handle_duplicate(self,duplicate_strategy):
 
         df_copy=self.df.copy()
         if self.analyzer.duplicate_count()==0:
             return df_copy
         else:
-            if self.duplicate_strategy=="keep":
+            if duplicate_strategy=="keep":
                 return df_copy
-            elif self.duplicate_strategy=="remove":
+            elif duplicate_strategy=="remove":
                 df_copy=df_copy.drop_duplicates()
 
                 return df_copy
             
-    def encode_categorical_column(self,column_name):
+
+
+            
+    def encode_categorical_column(self,column_name, encoding_strategy):
 
         df_copy=self.df.copy()
 
         
-        #cat_cols=self.analyzer.categorical_columns()
+        
 
         if not column_name:
             return df_copy
 
-        if self.encoding_strategy=="keep_Same":
+        if encoding_strategy=="keep_Same":
             return df_copy 
         
-        if self.encoding_strategy=="OneHotEncoder":
+        if encoding_strategy=="OneHotEncoder":
           
           from sklearn.preprocessing import OneHotEncoder
 
@@ -124,7 +130,7 @@ class Preprocessor:
           return df_copy
         
 
-        elif self.encoding_strategy=="LabelEncoder":
+        elif encoding_strategy=="LabelEncoder":
             from sklearn.preprocessing import LabelEncoder
 
             
@@ -136,7 +142,7 @@ class Preprocessor:
             return df_copy
         
 
-        elif self.encoding_strategy=="OrdinalEncoder":
+        elif encoding_strategy=="OrdinalEncoder":
           
           from sklearn.preprocessing import OrdinalEncoder
 
@@ -148,6 +154,98 @@ class Preprocessor:
           df_copy[column_name]=encoded_data.flatten()
 
           return df_copy
+        
+
+        
+    def detect_problem_type(self,target_column):
+
+        df_copy=self.df.copy()
+        y=df_copy[target_column]
+
+        unique_values=y.nunique()
+
+        if y.dtype=="object" or y.dtype=="category":
+            return "Classification"
+        
+        elif unique_values<=15:
+            return "Classification"
+        
+        else:
+            return "Regression"
+
+
+        
+        
+    def train_test_split_data(self,target_column,test_size=0.2,random_state=42):
+        df_copy=self.df.copy()
+
+        X=df_copy.drop(columns=target_column)
+        y=df_copy[target_column]
+
+        problem_type=self.detect_problem_type(target_column)
+        
+
+        from sklearn.model_selection import train_test_split
+
+        if problem_type=="Classification":
+
+          X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=test_size,random_state=random_state,stratify=y)
+        else:
+              X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=test_size,random_state=random_state)
+
+
+        return (X_train,X_test,y_train,y_test)
+    
+
+    
+    def scale_column(self,X_train,X_test,column_name,scaling_strategy):
+        df_copy=self.df.copy()
+
+    
+
+        
+        if not pd.api.types.is_numeric_dtype(
+              X_train[column_name]
+                      ) :
+                raise ValueError(
+        "Scaling applies only to numeric columns"
+    )
+        
+        else:
+            if scaling_strategy=="StandardScaler":
+                from sklearn.preprocessing import StandardScaler
+
+                scaler=StandardScaler()
+
+                
+
+                
+            
+            elif scaling_strategy=="MinMaxScaler":
+                from sklearn.preprocessing import MinMaxScaler
+
+                scaler=MinMaxScaler()
+
+            elif scaling_strategy=="RobustScaler":
+                from sklearn.preprocessing import RobustScaler
+                scaler=RobustScaler()
+
+            elif scaling_strategy=="Keep Same":
+                return X_train,X_test
+            else:
+                raise ValueError("Invalid Scaling Strategy")
+            
+
+
+            X_train[column_name]=scaler.fit_transform(X_train[[column_name]])
+
+            X_test[column_name]=scaler.transform(X_test[[column_name]])
+
+            return X_train,X_test
+                
+
+    
+
         
 
              
